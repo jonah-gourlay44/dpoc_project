@@ -91,7 +91,7 @@ for l=1:5
             can_courier = is_pickup | is_dropoff;
             
             %package was picked up/dropped off
-            couriered = i_package ~= j_package;
+            couriered = i_package ~=j_package;
             
             %illegal pick up/drop off scenarios
             illegal_scenario = ~can_courier | (~is_pickup & (j_package == 1)) | (~is_dropoff & (j_package == 0));
