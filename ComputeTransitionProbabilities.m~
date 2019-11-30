@@ -30,9 +30,28 @@ global FREE TREE SHOOTER PICK_UP DROP_OFF BASE
 global NORTH SOUTH EAST WEST HOVER
 global K TERMINAL_STATE_INDEX
 
+global OUT_OF_BOUNDS
+OUT_OF_BOUNDS = -1;
+
+wind = P_WIND * 0.25;
+
+%pick up location
 [pick_up_y, pick_up_x] = find(map==PICK_UP);
+pick_up = [pick_up_x, pick_up_y];
+
+%drop off location
 [drop_off_y, drop_off_x] = find(map==DROP_OFF);
+drop_off = [drop_off_x, drop_off_y];
+
+%base location
 [base_y, base_x] = find(map==BASE);
+base = [base_x, base_y];
+
+start_index = stateSpace==[base_x, base_y, 0];
+
+%array of free coordinates
+[free_y, free_x] = find(map==FREE);
+free = [free_x, free_y];
 
 %array of tree coordinates
 [trees_y, trees_x] = find(map==TREE);
@@ -42,77 +61,158 @@ trees = [trees_x, trees_y];
 [shooters_y, shooters_x] = find(map==SHOOTER);
 shooters = [shooters_x, shooters_y];
 
-M = length(map(:,1));
-N = length(map(1,:));
-
 P = zeros(K,K,5);
 
 for l=1:5
-    x_add = 0;
-    y_add = 0;
-    if l==NORTH
-        y_add = 1;
-    elseif l==SOUTH
-        y_add = -1;
-    elseif l==WEST
-        x_add = -1;
-    elseif l==EAST
-        x_add = 1;
+    
+    switch l
+        case HOVER
+            x_add = 0;
+            y_add = 0;
+        case NORTH
+            y_add = 1;
+            x_add = 0;
+        case SOUTH
+            y_add = -1;
+            x_add = 0;
+        case WEST
+            x_add = -1;
+            y_add = 0;
+        case EAST
+            x_add = 1;
+            y_add = 0;
     end 
+    
     for i=1:length(stateSpace)
         i_y=stateSpace(i,1); i_x=stateSpace(i,2); i_package=stateSpace(i,3);
         
         x_new = i_x + x_add;
         y_new = i_y + y_add;
         
-        wind = P_WIND * 0.25;
-            
+        new_coord = [x_new, y_new];
+        
+        new_square = OUT_OF_BOUNDS;
+        
+        if ismember(free, new_coord, 'rows')
+            new_square = FREE;
+        elseif ismember(trees, new_coord, 'rows')
+            new_square = TREE;
+        elseif ismember(shooter, new_coord, 'rows')
+            new_square = SHOOTER;
+        elseif new_coord == base
+            new_square = BASE;
+        elseif new_coord == pick_up
+            new_square = PICK_UP;
+        elseif new_coord == drop_off
+            new_square = DROP_OFF;
+        end
+        
+        %control input moves drone out of map boundaries
+        out_of_bounds = new_square == OUT_OF_BOUNDS;
+        
+        %control input moves drone into a tree
+        tree_collision = new_square == TREE;
+        
+        %illegal input action
+        illegal_input = out_of_bounds | tree_collision;
+        
         max_x = x_new + 1;
         min_x = x_new - 1;
         max_y = y_new + 1;
         min_y = y_new - 1;
         
-        %control input moves drone out of map boundaries
-        out_of_bounds = x_new > N || x_new < 1 || y_new > M || y_new < 1;
+        neighbors = [[max_x,y_new,i_package],[min_x,y_new,i_package],[x_new,max_y,i_package],[x_new,min_y,i_package],
+                     [max_x,y_new,~i_package],[min_x,y_new,~i_package],[x_new,max_y,~i_package],[x_new,min_y,~i_package]];        
         
-        %control input moves drone into a tree
-        tree_collision = ismember(trees, [x_new y_new], 'rows');
+        %if illegal input, drone is automatically put back at the start
+        %position
+        if illegal_input
+            P(i,:,l) = 0;
+            P(i,start_index,l) = 1;
+        elseif 
         
-        %illegal input action
-        illegal_input = out_of_bounds | tree_collision;
-        
-        for j=1:length(stateSpace)
-            j_y=stateSpace(j,1); j_x=stateSpace(j,2); j_package=stateSpace(j,3);
-            
-            is_pickup = [pick_up_x, pick_up_y] == [j_x, j_y];
-            is_dropoff = [drop_off_x, drop_off_y] == [j_x, j_y];
-            
-            %package can be picked up/dropped off
-            can_courier = is_pickup | is_dropoff;
-            
-            %package was picked up/dropped off
-            couriered = i_package ~=j_package;
-            
-            %illegal pick up/drop off scenarios
-            illegal_scenario = ~can_courier | (~is_pickup & (j_package == 1)) | (~is_dropoff & (j_package == 0));
-            
-            %illegal pick up/drop off
-            illegal_courier = couriered & illegal_scenario;
-     
-            
-            %don't allow illegal scenarios
-            if illegal_courier
-                P(i,j,l) = 0; 
-            %don't allow illegal input 
-            elseif illegal_input
+            for j=1:length(neighbors)
                 
+                j_y=stateSpace(j,1); j_x=stateSpace(j,2); j_package=stateSpace(j,3);
                 
-            end
+                next_coord = [j_x, j_y];
+        
+                next_square = OUT_OF_BOUNDS;
+        
+                if ismember(free, next_coord, 'rows')
+                    next_square = FREE;
+                elseif ismember(trees, next_coord, 'rows')
+                    next_square = TREE;
+                elseif ismember(shooter, next_coord, 'rows')
+                    next_square = SHOOTER;
+                elseif sum(next_coord - base) == 0
+                    next_square = BASE;
+                elseif sum(next_coord - pick_up) == 0
+                    next_square = PICK_UP;
+                elseif sum(next_coord - drop_off) == 0
+                    next_square = DROP_OFF;
+                end
+            
+                is_pickup = next_square == PICK_UP;
+                is_dropoff = next_square == DROP_OFF;
+            
+                %package can be picked up/dropped off
+                can_courier = is_pickup | is_dropoff;
+            
+                %package was picked up/dropped off
+                couriered = i_package ~= j_package;
+            
+                %illegal pick up/drop off scenarios
+                illegal_scenario = ~can_courier | (~is_pickup & (j_package == 1)) | (~is_dropoff & (j_package == 0));
+            
+                %illegal pick up/drop off
+                illegal_courier = couriered & illegal_scenario;
+                
+                %out of bounds
+                out_of_bounds = next_square == OUT_OF_BOUNDS;
+                
+                %tree
+                hit_tree = next_square == TREE;
+                
+                %in range of angry neighbor
+                in_range = false;
+                distances = ones(length(shooters)) * -1;
+                for k=1:length(shooters)
+                    shooter_coord = shooters(k);
+                    distance = sum(abs(next_coord - shooter_coord));
+                    if distance <= R 
+                        in_range = true;
+                        distances(k) = distance;
+                    end
+                end
+                
+                %blown into tree or out of bounds
+                collision = out_of_bounds | hit_tree;
+            
+                %don't allow illegal scenarios
+                if illegal_courier
+                    P(i,j,l) = 0; 
+                %probability of a collision
+                elseif collision
+                    P(i,start_index,l) = P(i,start_index,l) + wind;
+                end
+                
+                %probability of being shot down
+                p_shot_down = 0;
+                if in_range
+                    for k=1:length(distances)
+                        p_shooter = GAMMA/(1 + distances(k));
+                        P(i,start_index,l) = P(i,start_index,l) + p_shooter;
+                        p_shot_down = p_shot_down + p_shooter;
+                    end
+                end
+                
+                %probability to pick up package or drop it off
+                if can_courier && couriered
+                    P(i,j,l) = P(i,j,l) + (1 - p_shot_down);
+                end
            
-            
-            
-            
-            
+            end
         end
     end
 end
