@@ -97,13 +97,13 @@ for l=1:5
             new_square = FREE;
         elseif ismember(trees, new_coord, 'rows')
             new_square = TREE;
-        elseif ismember(shooter, new_coord, 'rows')
+        elseif ismember(shooters, new_coord, 'rows')
             new_square = SHOOTER;
-        elseif new_coord == base
+        elseif sum(new_coord - base) == 0
             new_square = BASE;
-        elseif new_coord == pick_up
+        elseif sum(new_coord - pick_up) == 0
             new_square = PICK_UP;
-        elseif new_coord == drop_off
+        elseif sum(new_coord - drop_off) == 0
             new_square = DROP_OFF;
         end
         
@@ -146,7 +146,7 @@ for l=1:5
                     next_square = FREE;
                 elseif ismember(trees, next_coord, 'rows')
                     next_square = TREE;
-                elseif ismember(shooter, next_coord, 'rows')
+                elseif ismember(shooters, next_coord, 'rows')
                     next_square = SHOOTER;
                 elseif sum(next_coord - base) == 0
                     next_square = BASE;
