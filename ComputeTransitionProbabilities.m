@@ -36,35 +36,36 @@ OUT_OF_BOUNDS = -1;
 wind = P_WIND * 0.25;
 
 %pick up location
-[pick_up_y, pick_up_x] = find(map==PICK_UP);
+[pick_up_x, pick_up_y] = find(map==PICK_UP);
 pick_up = [pick_up_x, pick_up_y];
 
 %drop off location
-[drop_off_y, drop_off_x] = find(map==DROP_OFF);
+[drop_off_x, drop_off_y] = find(map==DROP_OFF);
 drop_off = [drop_off_x, drop_off_y];
 
 %base location
-[base_y, base_x] = find(map==BASE);
+[base_x, base_y] = find(map==BASE);
 base = [base_x, base_y];
 
-start_index = stateSpace==[base_x, base_y, 0];
+start_index = find(stateSpace(:,1) == base_x & stateSpace(:,2) == base_y & stateSpace(:,3) == 0);
 
 %array of free coordinates
-[free_y, free_x] = find(map==FREE);
+[free_x, free_y] = find(map==FREE);
 free = [free_x, free_y];
 
 %array of tree coordinates
-[trees_y, trees_x] = find(map==TREE);
+[trees_x, trees_y] = find(map==TREE);
 trees = [trees_x, trees_y];
 
 %array of angry neighbor coordinates
-[shooters_y, shooters_x] = find(map==SHOOTER);
+[shooters_x, shooters_y] = find(map==SHOOTER);
 shooters = [shooters_x, shooters_y];
 
 P = zeros(K,K,5);
 
 for l=1:5
     
+    %determine control input
     switch l
         case HOVER
             x_add = 0;
@@ -84,7 +85,7 @@ for l=1:5
     end 
     
     for i=1:length(stateSpace)
-        i_y=stateSpace(i,1); i_x=stateSpace(i,2); i_package=stateSpace(i,3);
+        i_x=stateSpace(i,1); i_y=stateSpace(i,2); i_package=stateSpace(i,3);
         
         x_new = i_x + x_add;
         y_new = i_y + y_add;
@@ -93,11 +94,11 @@ for l=1:5
         
         new_square = OUT_OF_BOUNDS;
         
-        if ismember(free, new_coord, 'rows')
+        if sum(ismember(free, new_coord, 'rows')) >= 1
             new_square = FREE;
-        elseif ismember(trees, new_coord, 'rows')
+        elseif sum(ismember(trees, new_coord, 'rows')) >= 1
             new_square = TREE;
-        elseif ismember(shooters, new_coord, 'rows')
+        elseif sum(ismember(shooters, new_coord, 'rows')) >= 1
             new_square = SHOOTER;
         elseif sum(new_coord - base) == 0
             new_square = BASE;
@@ -121,9 +122,11 @@ for l=1:5
         max_y = y_new + 1;
         min_y = y_new - 1;
         
-        neighbors = [[max_x,y_new,i_package],[min_x,y_new,i_package],[x_new,max_y,i_package],[x_new,min_y,i_package],
-                     [max_x,y_new,~i_package],[min_x,y_new,~i_package],[x_new,max_y,~i_package],[x_new,min_y,~i_package]];        
-        
+        neighbors = [[max_x,y_new,i_package];[min_x,y_new,i_package];[x_new,max_y,i_package];[x_new,min_y,i_package];
+                     [max_x,y_new,~i_package];[min_x,y_new,~i_package];[x_new,max_y,~i_package];[x_new,min_y,~i_package]];        
+       
+        disp(stateSpace(i,:));
+        disp(illegal_input);
         %if illegal input, drone is automatically put back at the start
         %position
         if illegal_input
@@ -133,10 +136,9 @@ for l=1:5
             P(i,:,l) = 0;
             P(i,TERMINAL_STATE_INDEX,l) = 1;
         else
-        
             for j=1:length(neighbors)
                 
-                j_y=stateSpace(j,1); j_x=stateSpace(j,2); j_package=stateSpace(j,3);
+                j_x=neighbors(j,1); j_y=neighbors(j,2); j_package=neighbors(j,3);
                 
                 next_coord = [j_x, j_y];
         
@@ -191,30 +193,34 @@ for l=1:5
                 
                 %blown into tree or out of bounds
                 collision = out_of_bounds | hit_tree;
-            
-                %don't allow illegal scenarios
-                if illegal_courier
-                    P(i,j,l) = 0; 
-                %probability of a collision
-                elseif collision
-                    P(i,start_index,l) = P(i,start_index,l) + wind;
-                end
                 
                 %probability of being shot down
                 p_shot_down = 0;
                 if in_range
                     for k=1:length(distances)
-                        p_shooter = GAMMA/(1 + distances(k));
-                        P(i,start_index,l) = P(i,start_index,l) + p_shooter;
+                        p_shooter = 0;
+                        if distances(k) ~= -1
+                            p_shooter = GAMMA/(1 + distances(k));
+                        end
+                        if ~collision
+                            P(i,start_index,l) = P(i,start_index,l) + p_shooter;
+                        end
                         p_shot_down = p_shot_down + p_shooter;
                     end
                 end
-                
-                %probability to pick up package or drop it off
-                if can_courier && couriered
-                    P(i,j,l) = P(i,j,l) + (1 - p_shot_down);
+            
+                %don't allow illegal drop off/pick up scenarios
+                if illegal_courier
+                    P(i,j,l) = 0; 
+                %probability of a collision
+                elseif collision
+                    P(i,start_index,l) = P(i,start_index,l) + wind;
+                    P(i,j,l) = 0;
+                %probability to transition to this state if it is a legal
+                %transition
+                else
+                    P(i,j,l) = P(i,j,l) + (1 - p_shot_down);         
                 end
-           
             end
         end
     end
