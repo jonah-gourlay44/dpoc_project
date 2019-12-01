@@ -200,15 +200,19 @@ for l=1:5
                         end
                         p_shot_down = p_shot_down + p_shooter;
                     end
+                    if ~collision
+                        %disp('range');
+                        P(i,start_index,l) = P(i,start_index,l) + wind*p_shot_down;
+                    end
                 end
             
                 %probability of a collision
-                %if collision && ~illegal_courier
+                if collision && ~illegal_courier
                     %disp('collision');
-                %    P(i,start_index,l) = P(i,start_index,l) + wind;
+                    P(i,start_index,l) = P(i,start_index,l) + wind;
                 %probability to transition to this state if it is a legal
                 %transition
-                if ~illegal_courier
+                elseif ~illegal_courier
                     m = find(stateSpace(:,1) == j_x & stateSpace(:,2) == j_y & stateSpace(:,3) == j_package);
                     if wind_gust
                         P(i,m,l) = wind*(1 - p_shot_down);
@@ -217,11 +221,7 @@ for l=1:5
                     end
                 end
                 
-                %disp('one loop');
-            end
-            row_sum = sum(P(i,:,l));
-            if row_sum < 1
-                P(i,start_index,l) = P(i,start_index,l) + 1 - sum(P(i,:,l));
+                disp('one loop');
             end
         end
     end
