@@ -124,7 +124,9 @@ for l=1:5
         
         neighbors = [[max_x,y_new,i_package];[min_x,y_new,i_package];[x_new,max_y,i_package];[x_new,min_y,i_package];[x_new,y_new,i_package];
                      [max_x,y_new,~i_package];[min_x,y_new,~i_package];[x_new,max_y,~i_package];[x_new,min_y,~i_package];[x_new,y_new,~i_package]];        
-       
+        
+        p_crash = 0;
+        
         %if illegal input, drone is automatically put back at the start
         %position
         if illegal_input
@@ -132,6 +134,7 @@ for l=1:5
         elseif i == TERMINAL_STATE_INDEX
             P(i,TERMINAL_STATE_INDEX,l) = 1;
         else
+            
             for j=1:length(neighbors)
                 
                 j_x=neighbors(j,1); j_y=neighbors(j,2); j_package=neighbors(j,3);
@@ -160,11 +163,8 @@ for l=1:5
                 %package was couriered
                 couriered = i_package ~= j_package;
             
-                %illegal pick up/drop off scenarios
-                illegal_scenario = ~is_pickup | (is_pickup & j_package == 0);
-            
                 %illegal pick up/drop off
-                illegal_courier = couriered & illegal_scenario;
+                illegal_courier = (couriered & ~is_pickup) | (~couriered & is_pickup);
                 
                 %out of bounds
                 out_of_bounds = next_square == OUT_OF_BOUNDS;
@@ -201,29 +201,26 @@ for l=1:5
                         p_shot_down = p_shot_down + p_shooter;
                     end
                 end
-            
+                
                 %probability of a collision
-                %if collision && ~illegal_courier
-                    %disp('collision');
-                %    P(i,start_index,l) = P(i,start_index,l) + wind;
+                if collision && ~illegal_courier
+                    p_crash = p_crash + wind;
+                    
                 %probability to transition to this state if it is a legal
                 %transition
-                if ~illegal_courier
+                elseif ~illegal_courier
                     m = find(stateSpace(:,1) == j_x & stateSpace(:,2) == j_y & stateSpace(:,3) == j_package);
                     if wind_gust
                         P(i,m,l) = wind*(1 - p_shot_down);
+                        p_crash = p_crash + wind*p_shot_down;
                     else 
                         P(i,m,l) = (1 - P_WIND)*(1 - p_shot_down);
+                        p_crash = p_crash + (1 - P_WIND)*p_shot_down;
                     end
                 end
-                
-                %disp('one loop');
             end
-            row_sum = sum(P(i,:,l));
-            if row_sum < 1
-                P(i,start_index,l) = P(i,start_index,l) + 1 - sum(P(i,:,l));
-            end
-        end
+            P(i,start_index,l) = P(i,start_index,l) + p_crash;
+        end    
     end
 end
         
