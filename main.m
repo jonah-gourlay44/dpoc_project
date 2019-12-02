@@ -62,6 +62,7 @@ EAST = 3;
 WEST = 4;
 HOVER = 5;
 
+global start_index
 %% Generate map
 % map(m,n) represents the cell at indices (m,n) according to the axes
 % specified in the PDF.
@@ -115,7 +116,7 @@ if transitionProbabilitiesImplemented
     % to state j if control input l is applied.
     
     % TODO: Question b)
-    P = ComputeTransitionProbabilities(stateSpace, map);
+    Pi = ComputeTransitionProbabilities(stateSpace, map);
 end
 
 %% Compute stage costs

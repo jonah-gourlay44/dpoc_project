@@ -29,8 +29,8 @@ global GAMMA R P_WIND
 global FREE TREE SHOOTER PICK_UP DROP_OFF BASE
 global NORTH SOUTH EAST WEST HOVER
 global K TERMINAL_STATE_INDEX
-
 global OUT_OF_BOUNDS
+global start_index
 OUT_OF_BOUNDS = -1;
 
 wind = P_WIND * 0.25;
@@ -127,13 +127,10 @@ for l=1:5
         
         p_crash = 0;
         
-        %if illegal input, drone is automatically put back at the start
-        %position
-        if illegal_input
-            P(i,start_index,l) = 1;
-        elseif i == TERMINAL_STATE_INDEX
-            P(i,TERMINAL_STATE_INDEX,l) = 1;
-        else
+        %don't allow illegal input
+        if i == TERMINAL_STATE_INDEX
+            P(i,TERMINAL_STATE_INDEX,l) = 1.0;
+        elseif ~illegal_input
             
             for j=1:length(neighbors)
                 
