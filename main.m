@@ -62,7 +62,6 @@ EAST = 3;
 WEST = 4;
 HOVER = 5;
 
-global P
 %% Generate map
 % map(m,n) represents the cell at indices (m,n) according to the axes
 % specified in the PDF.
@@ -128,7 +127,7 @@ if stageCostsImplemented
     % represents the cost if we are in state i and apply control input l.
     
     % TODO: Question c)
-    Gi = ComputeStageCosts(stateSpace, map);
+    G = ComputeStageCosts(stateSpace, map);
 end
 
 %% Solve stochastic shortest path problem

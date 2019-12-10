@@ -124,12 +124,15 @@ function G = ComputeStageCosts( stateSpace, map )
                 G(i,l) = Inf;
             else
                 g = zeros(length(stateSpace),1);
+                p = zeros(length(stateSpace),1);
+                g(start_index,1) = Nc;
                 for j=1:length(neighbors)
                     x_next = neighbors(j,1); y_next = neighbors(j,2); j_package = neighbors(j,3);
+
                     next_coord = [x_next, y_next];
-                    
+            
                     next_square = OUT_OF_BOUNDS;
-                    
+            
                     if sum(ismember(free, next_coord, 'rows')) >= 1
                         next_square = FREE;
                     elseif sum(ismember(trees, next_coord, 'rows')) >= 1
@@ -143,41 +146,78 @@ function G = ComputeStageCosts( stateSpace, map )
                     elseif sum(abs(next_coord - drop_off)) == 0
                         next_square = DROP_OFF;
                     end
-                    
-                    k = find(stateSpace(:,1) == x_next & stateSpace(:,2) == y_next & stateSpace(:,3) == j_package);
-                    
-                    in_range = 0;
-                    for m=1:length(shooters)
-                        distance = sum(abs(next_square - shooters(m,:)));
 
-                        if distance <= R
-                            in_range = in_range + 1;
+                    %package can be picked up
+                    is_pickup = next_square == PICK_UP;
+            
+                    %package was couriered
+                    couriered = i_package ~= j_package;
+            
+                    %illegal pick up/drop off
+                    illegal_courier = (couriered & ~is_pickup) | (~couriered & is_pickup);
+                
+                    %out of bounds
+                    out_of_bounds = next_square == OUT_OF_BOUNDS;
+                
+                    %tree
+                    hit_tree = next_square == TREE;
+                
+                    %wind
+                    wind_gust = sum(next_coord - new_coord) ~= 0;
+                
+                    %in range of angry neighbor
+                    in_range = false;
+                    distances = ones(length(shooters),1) * -1;
+                    for k=1:length(shooters)
+                        shooter_coord = shooters(k, :);
+                        distance = sum(abs(next_coord - shooter_coord));
+                        if distance <= R 
+                            in_range = true;
+                            distances(k) = distance;
                         end
                     end
-                    
-                    %if next_square == FREE || next_square == SHOOTER || next_square == BASE || next_square == PICK_UP || next_square == DROP_OFF
-                        %if j_package == 0 && sum(abs(next_coord - pick_up)) < sum(abs(new_coord - pick_up))
-                        %    g(k,1) = g(k,1) - 0;
-                        %elseif j_package == 0 && sum(abs(next_coord - pick_up)) >= sum(abs(new_coord - pick_up))
-                        %    g(k,1) = g(k,1) + 0;
-                        %elseif j_package == 1 && sum(abs(next_coord - drop_off)) < sum(abs(new_coord - drop_off))
-                        %    g(k,1) = g(k,1) - 0;
-                        %elseif j_package ==1 && sum(abs(next_coord - drop_off)) >= sum(abs(new_coord - drop_off))
-                        %    g(k,1) = g(k,1) + 0;
-                        %end
-                        g(k,1) = 2;
-                    elseif next_square == TREE || next_square == OUT_OF_BOUNDS
-                        g(start_index,1) = 2;
+                
+                    %blown into tree or out of bounds
+                    collision = out_of_bounds | hit_tree;
+                
+                    %probability of being shot down
+                    p_shot_down = 0;
+                    if in_range
+                        for k=1:length(distances)
+                            p_shooter = 0;
+                            if distances(k) ~= -1
+                                p_shooter = GAMMA/(1 + distances(k));
+                            end
+                            p_shot_down = p_shot_down + p_shooter;
+                        end
                     end
-                    if k == TERMINAL_STATE_INDEX
-                        g(k,1) = 0;
+                
+                    %probability of a collision
+                    if collision && ~illegal_courier
+                        p_crash = p_crash + wind;
+                    
+                    %probability to transition to this state if it is a legal
+                    %transition
+                    elseif ~illegal_courier
+                        m = find(stateSpace(:,1) == j_x & stateSpace(:,2) == j_y & stateSpace(:,3) == j_package);
+                        if wind_gust
+                            p(i,m,l) = wind*(1 - p_shot_down);
+                            p_crash = p_crash + wind*p_shot_down;
+                        else 
+                            p(i,m,l) = (1 - P_WIND)*(1 - p_shot_down);
+                            p_crash = p_crash + (1 - P_WIND)*p_shot_down;
+                        end
                     end
+
+                    if next_square ~= OUT_OF_BOUNDS && next_square ~= TREE
                     
-                    %g(start_index, 1) = g(start_index,1) + in_range;
-                    
+                        k = find(stateSpace(:,1) == x_next & stateSpace(:,2) == y_next & stateSpace(:,3) == j_package);
+                        g(k,1) = 1;  
+
+                    end
                 end
                 
-                G(i,l) = dot(g, P(i,:,l));
+                G(i,l) = dot(g, p);
             end
         end
     end
