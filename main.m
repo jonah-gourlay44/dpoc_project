@@ -62,7 +62,7 @@ EAST = 3;
 WEST = 4;
 HOVER = 5;
 
-global start_index
+global P
 %% Generate map
 % map(m,n) represents the cell at indices (m,n) according to the axes
 % specified in the PDF.
@@ -95,7 +95,7 @@ K=size(stateSpace,1);
 
 %% Set the following to true as you progress with the files
 transitionProbabilitiesImplemented = true;
-stageCostsImplemented = false;
+stageCostsImplemented = true;
 valueIterationImplemented = false; 
 policyIterationImplemented = false;
 linearProgrammingImplemented = false;
@@ -116,7 +116,7 @@ if transitionProbabilitiesImplemented
     % to state j if control input l is applied.
     
     % TODO: Question b)
-    Pi = ComputeTransitionProbabilities(stateSpace, map);
+    P = ComputeTransitionProbabilities(stateSpace, map);
 end
 
 %% Compute stage costs
@@ -128,7 +128,7 @@ if stageCostsImplemented
     % represents the cost if we are in state i and apply control input l.
     
     % TODO: Question c)
-    G = ComputeStageCosts(stateSpace, map);
+    Gi = ComputeStageCosts(stateSpace, map);
 end
 
 %% Solve stochastic shortest path problem
