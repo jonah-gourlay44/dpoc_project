@@ -30,7 +30,9 @@ function [ J_opt, u_opt_ind ] = PolicyIteration( P, G )
 %       	input for each element of the state space. Mapping of the
 %       	terminal state is arbitrary (for example: HOVER).
 
-global K L HOVER FREE
+global K HOVER FREE
+
+L = 5;
 
 %% Handle terminal state
 % Do yo need to do something with the teminal state before starting policy
@@ -39,7 +41,7 @@ global TERMINAL_STATE_INDEX
 % IMPORTANT: You can use the global variable TERMINAL_STATE_INDEX computed
 % in the ComputeTerminalStateIndex.m file (see main.m)
 
-MAX_IT = 999999999;
+MAX_IT = 99999999;
 
 %% Define array for Q
 
@@ -50,8 +52,12 @@ q = zeros(K, L);
 
 for i = 1:K
     for u = 1:L
-        for j = 1:K
-            q(i, u) = q(i, u) + P(i, j, u)*G(i, u);
+        if G(i, u) == Inf
+            q(i, u) = Inf;
+        else
+            for j = 1:K
+              q(i, u) = q(i, u) + P(i, j, u)*G(i, u);
+            end
         end
     end
 end
@@ -73,17 +79,17 @@ while(1)
             P_h(i, j) = P(i, j, u_h(i));
         end
     end
-
+            
     G_h = zeros(K, 1);
     for i = 1:K
         G_h(i) = q(i, u_h(i));
     end
-
+    
     J_h = (eye(K) - P_h)\G_h;
 
     %% Now lets get a new minimum policy
 
-    u_hp1 = zeros(K,1);
+    u_hp1 = zeros(K,1); %for some reason it is not getting updated
 
     for i = 1:K
         u_min = [0,99999999999]; %first value is the action (in [1,5]), second is the value (made it arbitrarily big)
@@ -121,5 +127,8 @@ end
 
 J_opt = J_h;
 u_opt_ind = u_h;
+
+% J_opt = zeros(K, 1);
+% u_opt_ind = zeros(K, 1);
 
 end
