@@ -64,19 +64,23 @@ end
 
 %% Define guess of mu 
 
-u_0 = randi([1 5],K,1); %would be better to not do random but should be fine considering wind can take any set to end
+u_0 = randi([1 5],K,1);
+u_0(TERMINAL_STATE_INDEX) = HOVER;
+
+%think we need to do something better here, should be fine with the wind
 
 u_h = u_0;
 it = 0;
+it2 = 0;
 J_h = zeros(K, 1);
 
 while(1)
     
-    %% Define Matrices for (I-P)J = G  
+    % Define Matrices for (I-P)J = G
     P_h = zeros(K, K);
     for i = 1:K
         for j = 1:K
-            P_h(i, j) = P(i, j, u_h(i));
+            P_h(i, j) = P(i, j, u_h(i)); %here
         end
     end
             
@@ -84,12 +88,22 @@ while(1)
     for i = 1:K
         G_h(i) = q(i, u_h(i));
     end
+        
+    P_h(TERMINAL_STATE_INDEX, :) = [];
+    P_h(:, TERMINAL_STATE_INDEX) = [];
+    G_h(TERMINAL_STATE_INDEX, :) = []; %need to do this to ensure non-singularity
+    %correct, otherwise matrix is singular
+
+    assignin('base','P_h',P_h)
     
-    J_h = (eye(K) - P_h)\G_h;
-
+    J_h = (eye(K-1) - P_h)\G_h; %results in J_h with all NaN entries 
+    
+    J_h = [J_h(1:TERMINAL_STATE_INDEX-1); 0; J_h(TERMINAL_STATE_INDEX:end)]; %add back in cost for terminal state
+    
     %% Now lets get a new minimum policy
-
-    u_hp1 = zeros(K,1); %for some reason it is not getting updated
+    
+    u_hp1 = ones(K,1); %for some reason it is not getting updated
+    u_hp1 = u_hp1*6;
 
     for i = 1:K
         u_min = [0,99999999999]; %first value is the action (in [1,5]), second is the value (made it arbitrarily big)
@@ -99,7 +113,7 @@ while(1)
                 a = a + P(i, j, l)*J_h(j);
             end
 
-            if a < u_min(2)
+            if a < u_min(2) && a~=0
                 u_min = [l, a];
             end
         end
@@ -121,7 +135,7 @@ while(1)
         break
     end
     
-    it = it + 1;
+    it = it + 1
     
 end
 
