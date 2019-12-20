@@ -45,15 +45,18 @@ f = ones(K-1,1);
 V_u = zeros(K-1,4);
 I = eye(K-1);
 
-%G(G == Inf) = 50;
+%G(G == Inf) = 10^8;
 G(TERMINAL_STATE_INDEX,:) = [];
 P(TERMINAL_STATE_INDEX,:,:) = [];
 P(:,TERMINAL_STATE_INDEX,:) = [];
 for u=1:4
-    ind = find(G(:,u) == Inf);
-    P_prime = P;
-    P_prime(ind,ind,:) = [];
-    x = linprog(-1*f(:,1),I(:,:)-P(:,:,u),G(:,u),[],[],zeros(K-1,1),100*ones(K-1,1));
+    g = f;
+    ind = find(G == Inf);
+    G(ind,u) = [];
+    P(ind,ind,u) = [];
+    I(ind,ind) = [];
+    f(ind,1) = [];
+    x = linprog(-1*f(:,1),I(:,:)-P(:,:,u),G(:,u));
     V_u(:,u) = x;
 end
 

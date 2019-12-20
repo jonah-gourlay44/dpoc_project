@@ -107,5 +107,5 @@ end
 
 J_opt = V_hp1;
 u_opt_ind = u_hp1;
-
+disp(u_opt_ind);
 end

@@ -97,7 +97,7 @@ transitionProbabilitiesImplemented = true;
 stageCostsImplemented = true;
 valueIterationImplemented = false; 
 policyIterationImplemented = false;
-linearProgrammingImplemented = false;
+linearProgrammingImplemented = true;
 
 %% Compute the terminal state index
 global TERMINAL_STATE_INDEX
